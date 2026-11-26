@@ -8,9 +8,10 @@ Hard rules (from Josias, do not relax in code):
   - Alert-as-stop: every entry carries an exit level; fractional
     positions are market-exit only, so sizing IS the stop.
   - 10 demo trades before any live size.
-  - Double-verify: a live order needs TWO independent confirmations
-    (setup re-check + Josias's explicit go on the exact ticket).
-    This module enforces the gate; broker.py refuses without it.
+  - Double-verify: setup re-check qualifies AND the 10-demo-trade
+    requirement is met. No per-ticket human go required (removed by
+    Josias's explicit request, Nov 2026). This module enforces the
+    gate; broker.py refuses without it.
 """
 
 
@@ -35,11 +36,10 @@ def check_limits(open_positions, max_positions=3):
     return True
 
 
-def double_verify(setup_result, josias_go, demo_trades_done, min_demo=10):
+def double_verify(setup_result, demo_trades_done, min_demo=10):
     """Gate for ANY live order. Returns True only if every check passes."""
     checks = {
         "setup_qualifies": bool(setup_result and setup_result.get("qualifies")),
-        "josias_explicit_go": bool(josias_go),
         "demo_requirement_met": demo_trades_done >= min_demo,
     }
     if not all(checks.values()):

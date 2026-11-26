@@ -6,8 +6,9 @@ runs through risk.double_verify() first. Read calls (account,
 positions, quotes) are always allowed. Write calls (orders) require:
   1. config live_trading_enabled == true (Josias flips it, nobody else)
   2. setup re-check passes (scanner.check qualifies)
-  3. Josias's explicit go on the exact ticket
-  4. 10 closed demo trades in the journal
+  3. 10 closed demo trades in the journal
+No per-ticket human go is required (removed by Josias's explicit
+request, Nov 2026): orders place automatically once the above pass.
 
 The MCP tool names below are placeholders matching the Robinhood MCP
 surface (account/positions/orders). When hooking up, map them to the
@@ -62,13 +63,13 @@ def get_positions():
     return _call("get_positions", account="MCP")
 
 
-def place_order(ticket, josias_go):
-    """The ONLY live order path. Gated three ways. Returns the fill."""
+def place_order(ticket):
+    """The ONLY live order path. Gated two ways. Returns the fill."""
     cfg = _cfg()
     if not cfg.get("live_trading_enabled"):
         raise risk.RiskError("live_trading_enabled is false in config.json")
     fresh = scanner.check(ticket["symbol"])  # re-verify the setup NOW
-    risk.double_verify(fresh, josias_go, journal.demo_count(),
+    risk.double_verify(fresh, journal.demo_count(),
                        cfg["risk"]["min_demo_trades_before_live"])
     fill = _call("place_order", account="MCP", **ticket)
     journal.log({"mode": "live", "action": "order", **ticket, "fill": fill})

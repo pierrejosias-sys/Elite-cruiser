@@ -25,9 +25,9 @@ def place_order(*args, **kwargs):
     )
 
 
-def build_ticket(symbol, account_value, setup_result, josias_go, demo_trades_done):
-    """Builds (does not send) the exact order ticket for Josias to approve."""
-    risk.double_verify(setup_result, josias_go, demo_trades_done)
+def build_ticket(symbol, account_value, setup_result, demo_trades_done):
+    """Builds the exact order ticket. Not sent by this function."""
+    risk.double_verify(setup_result, demo_trades_done)
     size = risk.position_size(account_value, setup_result["close"],
                               setup_result["invalidation"])
     return {
@@ -41,5 +41,5 @@ def build_ticket(symbol, account_value, setup_result, josias_go, demo_trades_don
         "invalidation": setup_result["invalidation"],
         "alert_at_exit": setup_result["invalidation"],
         "risk_dollars": size["risk_dollars"],
-        "status": "AWAITING JOSIAS GO — not sent",
+        "status": "READY — setup qualifies, demo requirement met",
     }

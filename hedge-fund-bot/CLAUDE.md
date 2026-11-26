@@ -11,8 +11,9 @@ trading + journaling. Read this file before touching anything.
   double-verify gate. If Risk says no, the answer is no.
 - **Portfolio Monitor** (`bot/monitor.py`): watches held positions every
   60s in market hours; alerts on stop crosses, -10% from avg cost, 5%+ moves.
-- **Trader** (`bot/paper.py` now, `bot/broker.py` later): paper/demo
-  trades today. Live orders are DISABLED in code.
+- **Trader** (`bot/paper.py` for demo, `bot/broker_mcp.py` for live):
+  places orders through the connected Robinhood MCP once
+  live_trading_enabled is true and double-verify passes.
 
 ## Hard rules (Josias's — never relax, never work around)
 1. **MCP account only** (Robinhood "Agentic", ••••0434). Never Individual.
@@ -23,13 +24,18 @@ trading + journaling. Read this file before touching anything.
 4. **Journal everything** (`bot/journal.py`). No journal entry = it didn't happen.
 5. **10 demo trades before live size.** Demo = paper engine, closed trades count.
 6. **Double-verify before ANY live order**: setup re-check passes AND
-   Josias gives an explicit go on the exact ticket. `risk.double_verify`
-   enforces it; `broker.place_order` raises until the workflow changes
-   by Josias's explicit decision in chat.
-7. **Claude is read-only on Robinhood.** Live execution, if it ever
-   happens, is Tyrone placing the exact approved ticket in MCP, then
-   reporting the fill. Muse journals.
-8. **No autonomous trades.** Ever. A scan result is information, not an order.
+   the 10-demo-trade requirement is met. `risk.double_verify` enforces
+   it; `broker_mcp.place_order` refuses without it.
+7. **Live execution runs through `bot/broker_mcp.py`**, gated by
+   `live_trading_enabled` in config.json (Josias flips it, nobody
+   else) and the double-verify check above. Muse journals every fill.
+8. **No per-ticket human go required.** Removed by Josias's explicit
+   request, Nov 2026 — he was told this makes the system capable of
+   placing live orders with no human check at execution time, and
+   confirmed he wanted it removed anyway. A qualifying setup with demo
+   trades done and live_trading_enabled=true can now place a real
+   order on its own. Position limits, 1% sizing, and alert-as-stop
+   still apply; they were not part of this change.
 
 ## Data
 - Prices: Yahoo Finance chart API (`bot/prices.py`), stdlib only.
@@ -45,17 +51,17 @@ python3 run.py scan            # watchlist vs setup
 python3 run.py monitor         # one monitoring poll
 python3 run.py monitor --loop  # constant monitoring
 python3 run.py paper status    # demo account + demo trade count
-python3 run.py ticket MU       # build ticket (blocked until demo done + go)
+python3 run.py ticket MU       # build ticket (blocked until demo trades done)
 ```
 
-## Hooking up the Robinhood MCP (Josias does this himself)
+## Robinhood MCP (hooked up)
 `bot/broker_mcp.py` is the only module allowed to talk to the Robinhood
-MCP server. To hook it up: connect the Robinhood MCP in Claude Code,
-then fill in the `_MCP_CALLS` table with the real tool names
-(account / positions / place_order). Nothing else changes. Reads work
-immediately; orders still need `live_trading_enabled: true` in
-config.json (Josias flips it) AND a fresh double-verify pass on every
-single order. Do not remove or weaken those checks.
+MCP server. `_MCP_CALLS` maps to the real tool names: get_portfolio,
+get_equity_positions, place_equity_order, against the MCP account
+(••••0434). Orders still need `live_trading_enabled: true` in
+config.json (Josias flips it) AND a fresh double-verify pass (setup
+qualifies + 10 demo trades done) on every single order. There is no
+per-ticket human go — see hard rule 8.
 
 ## Working agreements
 - Verify before claiming: show the actual output, not a summary of it.

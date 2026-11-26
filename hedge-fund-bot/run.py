@@ -5,7 +5,7 @@
   python3 run.py paper status    # paper account status
   python3 run.py paper buy SYM $ # paper buy (demo phase)
   python3 run.py paper sell SYM  # paper sell
-  python3 run.py ticket SYM      # build an order ticket (needs setup + go)
+  python3 run.py ticket SYM      # build an order ticket (needs setup qualifying + demo trades done)
 """
 import json
 import os
@@ -47,9 +47,8 @@ def main(argv):
     elif cmd == "ticket":
         sym = argv[1]
         result = scanner.check(sym)
-        go = "--go" in argv  # Josias's explicit go on this exact ticket
         try:
-            ticket = broker.build_ticket(sym, 70.42, result, go, journal.demo_count())
+            ticket = broker.build_ticket(sym, 70.42, result, journal.demo_count())
             print(json.dumps(ticket, indent=2))
         except Exception as e:
             print(f"ticket blocked: {e}")
