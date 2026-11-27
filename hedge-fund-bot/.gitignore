@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 journal.jsonl
+monitor_state.json
+alerts.jsonl
