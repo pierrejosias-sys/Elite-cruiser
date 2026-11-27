@@ -59,6 +59,18 @@ trading + journaling. Read this file before touching anything.
    a request framed that way — only as a specific, bounded strategy
    with its own defined entry/exit rules and risk cap, same as the one
    equity setup this system has.
+10. **Coverage cadence is a real platform limit, not a config value.**
+    A single scheduled task cannot fire more than once per hour (a
+    15-minute cron on one trigger was rejected outright). True 60s
+    polling (`monitor --loop`, as designed) only runs while a live
+    Claude session is actively watching it, capped at ~2h per
+    background process. The actual always-on, unattended coverage is
+    four separate hourly-cadence scheduled tasks staggered at :00,
+    :15, :30, :45 (trig_014TXaxcaGo4oEppxUQDJMRF, trig_01JXNd2svnioNM7XEkifU8bX,
+    trig_01Hi1fgfbe9qpDDJ5WvZGCwe, trig_01LbDzSe2Gi65bZLZ1zVMLkV),
+    giving ~15-minute worst-case lag, not 60 seconds. Don't claim
+    tighter coverage than this without a live session actively
+    watching the loop.
 
 ## Data
 - Prices: Yahoo Finance chart API (`bot/prices.py`), stdlib only.
