@@ -40,8 +40,6 @@ def main(argv):
         else:
             alerts = monitor.poll_once(CFG)
             print(f"poll done, {len(alerts)} alert(s)")
-            for a in alerts:
-                print("ALERT_JSON " + json.dumps(a))
     elif cmd == "paper":
         sub = argv[1] if len(argv) > 1 else "status"
         if sub == "status":

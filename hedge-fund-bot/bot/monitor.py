@@ -96,7 +96,8 @@ def poll_once(cfg):
     for a in alerts:
         with open(ALERTS, "a") as f:
             f.write(json.dumps(a) + "\n")
-        print(f"ALERT {a['symbol']} ${a['price']} — {a['reason']} (avg cost ${a['avg_cost']})")
+        print(f"ALERT {a['symbol']} ${a['price']} — {a['reason']} (avg cost ${a['avg_cost']})", flush=True)
+        print("ALERT_JSON " + json.dumps(a), flush=True)
     return alerts
 
 
