@@ -6,6 +6,11 @@
   python3 run.py paper buy SYM $ # paper buy (demo phase)
   python3 run.py paper sell SYM  # paper sell
   python3 run.py ticket SYM      # build an order ticket (needs setup qualifying + demo trades done)
+  python3 run.py journal-exit SYM QUANTITY REASON FILL_JSON
+                                  # record a live exit fill (order placed by the
+                                  # orchestrating Claude Code Remote session via
+                                  # the real Robinhood MCP tools -- broker_mcp's
+                                  # _call() is a stub a plain process can't use)
 """
 import json
 import os
@@ -35,6 +40,8 @@ def main(argv):
         else:
             alerts = monitor.poll_once(CFG)
             print(f"poll done, {len(alerts)} alert(s)")
+            for a in alerts:
+                print("ALERT_JSON " + json.dumps(a))
     elif cmd == "paper":
         sub = argv[1] if len(argv) > 1 else "status"
         if sub == "status":
@@ -52,6 +59,12 @@ def main(argv):
             print(json.dumps(ticket, indent=2))
         except Exception as e:
             print(f"ticket blocked: {e}")
+    elif cmd == "journal-exit":
+        sym, qty, reason, fill_json = argv[1], argv[2], argv[3], argv[4]
+        entry = journal.log({"mode": "live", "action": "exit", "symbol": sym,
+                             "quantity": float(qty), "reason": reason,
+                             "fill": json.loads(fill_json)})
+        print(json.dumps(entry))
     else:
         print(__doc__)
 
