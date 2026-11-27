@@ -77,8 +77,16 @@ trading + journaling. Read this file before touching anything.
   Regular-session prices. Robinhood's own account read is ground truth
   for balances — refresh `config.json` positions from that read, not
   from memory.
-- Config: `config.json` holds rules, watchlist, and the Nov 26, 2026
-  positions snapshot.
+- Config: `config.json` holds rules, watchlist, the Nov 26, 2026
+  positions snapshot, and the Nov 27, 2026 permissions check
+  (`account.permissions_checked_2026_11_27`): option level 3, no
+  platform-level trade approval, and per-symbol 24hr/all-day
+  eligibility. The 24hr flag does NOT extend this bot's execution
+  window today — see that block for why (fractional + market order =
+  regular_hours only, a Robinhood rule, not a config toggle).
+  Permissions are a point-in-time read (`get_accounts`,
+  `get_trade_approval_setting`, `get_equity_tradability`) — re-check
+  rather than trust this file if it matters for a decision.
 
 ## Run it
 ```
