@@ -5,7 +5,16 @@ Same thresholds as the live Muse hook (robinhood-price-watch):
   - any position crossing 10% below avg cost
   - any name moving 5%+ since its last alert
 Polls every config.monitor.poll_seconds during market hours (ET).
-Alerts print to stdout and append to alerts.jsonl. Read-only.
+Alerts print to stdout and append to alerts.jsonl.
+
+This module itself is read-only: it never places an order. Each alert
+is tagged with "account" (MCP or Individual). Automatic live exits
+(added Nov 2026, per Josias's explicit request, no per-trade check)
+are executed by the orchestrating Claude Code Remote session that
+runs this poll on a schedule, via bot/broker_mcp.py:place_exit_order
+and the live Robinhood MCP tools -- MCP-tagged alerts only. Alerts
+tagged "Individual" are never acted on; that account is permanently
+off-limits to this system (hard rule 1).
 """
 import json
 import os
@@ -41,9 +50,9 @@ def _positions(cfg):
     snap = cfg["positions_snapshot_2026_11_26"]
     out = []
     for p in snap["MCP"]:
-        out.append((p["symbol"], p["avg_cost"], p.get("stop")))
+        out.append((p["symbol"], p["avg_cost"], p.get("stop"), "MCP"))
     for p in snap["Individual_watch_only"]:
-        out.append((p["symbol"], p["avg_cost"], p.get("stop")))
+        out.append((p["symbol"], p["avg_cost"], p.get("stop"), "Individual"))
     return out
 
 
@@ -52,7 +61,7 @@ def poll_once(cfg):
     alerts = []
     below_pct = cfg["monitor"]["alert_below_avg_cost_pct"] / 100.0
     move_pct = cfg["monitor"]["alert_move_since_last_pct"] / 100.0
-    for sym, avg, stop in _positions(cfg):
+    for sym, avg, stop, account in _positions(cfg):
         price = prices.quote(sym)
         if price is None:
             continue
@@ -78,7 +87,8 @@ def poll_once(cfg):
         state["below10"][sym] = is_below
         if reason:
             alerts.append({"symbol": sym, "price": price, "avg_cost": avg,
-                           "reason": reason, "ts": datetime.now(ET).isoformat()})
+                           "account": account, "reason": reason,
+                           "ts": datetime.now(ET).isoformat()})
             state["last_alert"][sym] = price
     state["seeded"] = True
     with open(STATE, "w") as f:

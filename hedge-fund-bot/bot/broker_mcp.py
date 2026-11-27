@@ -1,14 +1,25 @@
 """Robinhood MCP adapter — the plug Josias hooks up himself.
 
 Claude Code connects to the Robinhood MCP server; this module is the
-only place in the codebase allowed to talk to it. Every order path
-runs through risk.double_verify() first. Read calls (account,
-positions, quotes) are always allowed. Write calls (orders) require:
-  1. config live_trading_enabled == true (Josias flips it, nobody else)
-  2. setup re-check passes (scanner.check qualifies)
-  3. 10 closed demo trades in the journal
-No per-ticket human go is required (removed by Josias's explicit
-request, Nov 2026): orders place automatically once the above pass.
+only place in the codebase allowed to talk to it. Read calls (account,
+positions, quotes) are always allowed.
+
+Two write (order) paths, both MCP account ONLY, never Individual
+(hard rule 1):
+  - place_order (entry): live_trading_enabled == true, setup re-check
+    passes (scanner.check qualifies), 10 closed demo trades in the
+    journal (currently 0 -- see config.risk.min_demo_trades_before_live).
+  - place_exit_order (exit, added Nov 2026): live_trading_enabled ==
+    true only. No setup re-check, no demo-trade count -- an exit is
+    triggered by adverse price action against a held position, not by
+    the entry setup. Driven by monitor.poll_once's MCP-tagged alerts.
+No per-ticket human go is required for either path (removed by
+Josias's explicit request, Nov 2026): orders place automatically once
+the above pass. Note: _call() below is a stub a plain Python process
+cannot execute against the real MCP server -- actual order placement
+happens when a Claude Code Remote session (interactive or a scheduled
+trigger) runs this code and performs the real mcp__Robinhood__* tool
+calls itself.
 
 The MCP tool names below are placeholders matching the Robinhood MCP
 surface (account/positions/orders). When hooking up, map them to the
@@ -64,7 +75,7 @@ def get_positions():
 
 
 def place_order(ticket):
-    """The ONLY live order path. Gated two ways. Returns the fill."""
+    """The entry order path. Gated two ways. Returns the fill."""
     cfg = _cfg()
     if not cfg.get("live_trading_enabled"):
         raise risk.RiskError("live_trading_enabled is false in config.json")
@@ -73,4 +84,34 @@ def place_order(ticket):
                        cfg["risk"]["min_demo_trades_before_live"])
     fill = _call("place_order", account="MCP", **ticket)
     journal.log({"mode": "live", "action": "order", **ticket, "fill": fill})
+    return fill
+
+
+def place_exit_order(symbol, quantity, reason):
+    """The exit path for alert-as-stop (added Nov 2026, per Josias's
+    explicit request, no per-trade check). Automatic, MCP account ONLY
+    -- never call this for a symbol tagged "Individual" in
+    monitor.poll_once's alerts; that account is permanently off-limits
+    (hard rule 1).
+
+    Unlike place_order, this does NOT re-check the entry setup or the
+    demo-trade count: an exit is triggered by adverse price action
+    against an existing position, not by the entry setup qualifying,
+    so that gate does not apply here. The only gate is
+    live_trading_enabled.
+
+    `quantity` must be the position's current live share count (from
+    get_equity_positions, not the config.json snapshot, which can be
+    stale) -- this always exits the full position, fractional market
+    order only, per config.risk.fractional_market_exit_only.
+    """
+    cfg = _cfg()
+    if not cfg.get("live_trading_enabled"):
+        raise risk.RiskError("live_trading_enabled is false in config.json")
+    ticket = {"symbol": symbol, "side": "sell", "type": "market",
+              "quantity": quantity, "time_in_force": "gfd",
+              "market_hours": "regular_hours"}
+    fill = _call("place_order", account="MCP", **ticket)
+    journal.log({"mode": "live", "action": "exit", "symbol": symbol,
+                "quantity": quantity, "reason": reason, "fill": fill})
     return fill
