@@ -59,6 +59,31 @@ trading + journaling. Read this file before touching anything.
    a request framed that way — only as a specific, bounded strategy
    with its own defined entry/exit rules and risk cap, same as the one
    equity setup this system has.
+10a. **Robinhood's per-order confirmation requirement is not this bot's
+    to waive.** `review_equity_order`'s own documentation requires
+    presenting the order and getting explicit customer confirmation
+    before `place_equity_order`, whenever `customer_approval_required`
+    comes back false (observed every time so far on this account —
+    never seen true). This is Robinhood's tool contract, not a
+    config value; nothing in this repo can turn it off, and nothing
+    should try to (a separate "approval bot" that auto-confirms
+    without a real human decision was explicitly proposed and
+    declined in the same conversation — it would just be the same
+    bypass with an extra layer).
+    Resolution (Nov 28, 2026, Josias's explicit request): route the
+    confirmation through Slack #general instead of requiring a live
+    Claude session. When a run finds a clean alert needing
+    confirmation, it posts the order preview there (addressed
+    generally, so Tyrone, Muse, or Josias directly can answer) and
+    records it in `pending_approvals.jsonl` (gitignored, local state
+    like `monitor_state.json`). Every subsequent run also checks each
+    pending entry's Slack thread: an affirmative reply places the
+    real order (after a fresh `review_equity_order` re-check) and
+    journals it; a negative reply drops it; no reply leaves it
+    pending indefinitely. There is NO auto-yes on timeout -- explicitly
+    requested and declined in the same conversation. If nobody
+    answers, the order simply never places. That's the tradeoff of a
+    real human checkpoint, not a bug to fix.
 10. **Coverage cadence is a real platform limit, not a config value.**
     A single scheduled task cannot fire more than once per hour (a
     15-minute cron on one trigger was rejected outright). True 60s

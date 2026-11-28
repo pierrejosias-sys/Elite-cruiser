@@ -3,3 +3,4 @@ __pycache__/
 journal.jsonl
 monitor_state.json
 alerts.jsonl
+pending_approvals.jsonl
